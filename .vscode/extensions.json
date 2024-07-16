@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "EditorConfig.EditorConfig",
+    "mechatroner.rainbow-csv",
+    "mikestead.dotenv",
+    "ms-azuretools.vscode-bicep",
+    "ms-python.black-formatter",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-toolsai.jupyter",
+    "ms-vscode.makefile-tools",
+    "qwtel.sqlite-viewer",
+    "redhat.vscode-yaml",
+    "tomoki1207.pdf",
+    "visualstudioexptteam.vscodeintellicode",
+    "wholroyd.jinja"
+  ]
+}

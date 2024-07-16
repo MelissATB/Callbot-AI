@@ -1,0 +1,30 @@
+# Local dev
+.version.cache
+*.sqlite*
+
+# Local app config file
+*.env
+config*.yaml
+
+# Tests
+tests/
+
+# Test reports
+.pytest_cache/
+test-reports/
+
+# Examples
+examples/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# GitHub
+.github/
+
+# only for SG demo db
+# helpers/db/
+
+# Static resources
+resources/
