@@ -29,7 +29,7 @@ var llmFastModelFullName = toLower('${llmFastModel}-${llmFastVersion}')
 var llmSlowModelFullName = toLower('${llmSlowModel}-${llmSlowVersion}')
 var embeddingModelFullName = toLower('${embeddingModel}-${embeddingVersion}')
 var cosmosContainerName = 'calls-v3'  // Third schema version
-var localConfig = loadYamlContent('../infra/configs/config.yaml')
+var localConfig = loadYamlContent('../configs/config.yaml')
 var phonenumberSanitized = replace(localConfig.communication_services.phone_number, '+', '')
 var config = {
   public_domain: appUrl
@@ -519,7 +519,7 @@ resource contentfilter 'Microsoft.CognitiveServices/accounts/raiPolicies@2024-04
         // Completion
         {
           blocking: false
-          enabled: false 
+          enabled: false
           name: 'hate'
           source: 'Completion'
         }
@@ -560,7 +560,7 @@ resource llmSlow 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-pr
     name: llmSlowDeploymentType
   }
   properties: {
-    raiPolicyName: (enableContentFilter? contentfilter.name: null) 
+    raiPolicyName: (enableContentFilter? contentfilter.name: null)
     versionUpgradeOption: 'NoAutoUpgrade'
     model: {
       format: 'OpenAI'
@@ -579,7 +579,7 @@ resource llmFast 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-pr
     name: llmFastDeploymentType
   }
   properties: {
-    raiPolicyName: (enableContentFilter? contentfilter.name: null) 
+    raiPolicyName: (enableContentFilter? contentfilter.name: null)
     versionUpgradeOption: 'NoAutoUpgrade'
     model: {
       format: 'OpenAI'
@@ -601,7 +601,7 @@ resource embedding 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-
     name: embeddingDeploymentType
   }
   properties: {
-    raiPolicyName: (enableContentFilter? contentfilter.name: null) 
+    raiPolicyName: (enableContentFilter? contentfilter.name: null)
     versionUpgradeOption: 'NoAutoUpgrade'
     model: {
       format: 'OpenAI'
