@@ -13,13 +13,13 @@ class LanguageEntryModel(BaseModel):
     See: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=tts#supported-languages
     """
 
-    pronunciations_en: list[str]
+    pronunciations: list[str]
     short_code: str
     voice: str
 
     @property
     def human_name(self) -> str:
-        return self.pronunciations_en[0]
+        return self.pronunciations[0]
 
     def __str__(self):  # Pretty print for logs
         return self.short_code
@@ -35,22 +35,22 @@ class LanguageModel(BaseModel):
     # See: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=tts
     availables: list[LanguageEntryModel] = [
         LanguageEntryModel(
-            pronunciations_en=["French", "FR", "France"],
+            pronunciations=["French", "FR", "France"],
             short_code="fr-FR",
             voice="fr-FR-DeniseNeural",
         ),
         LanguageEntryModel(
-            pronunciations_en=["English", "EN", "United States"],
+            pronunciations=["English", "EN", "United States"],
             short_code="en-US",
             voice="en-US-NancyNeural",
         ),
         LanguageEntryModel(
-            pronunciations_en=["Spanish", "ES", "Spain"],
+            pronunciations=["Spanish", "ES", "Spain"],
             short_code="es-ES",
             voice="es-ES-LiaNeural",
         ),
         LanguageEntryModel(
-            pronunciations_en=["Chinese", "ZH", "China"],
+            pronunciations=["Chinese", "ZH", "China"],
             short_code="zh-CN",
             voice="zh-CN-XiaoqiuNeural",
         ),

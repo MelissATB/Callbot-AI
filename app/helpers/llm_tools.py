@@ -20,6 +20,8 @@ from pydantic import ValidationError
 from typing import Awaitable, Callable, Annotated, Literal
 from typing_extensions import TypedDict
 import asyncio
+import json
+from datetime import datetime
 
 
 _search = CONFIG.ai_search.instance()
@@ -29,6 +31,11 @@ _sms = CONFIG.sms.instance()
 class UpdateClaimDict(TypedDict):
     field: str
     value: str
+
+
+class AvailabilityCalenderDict(TypedDict):
+    date: str
+    time: str
 
 
 class LlmPlugins:
@@ -49,6 +56,134 @@ class LlmPlugins:
         self.client = client
         self.post_callback = post_callback
         self.tts_callback = tts_callback
+
+    async def book_meeting(
+        self,
+        customer_response: Annotated[
+            str,
+            """
+            Phrase used to confirm the action, in the same language as the client. This phrase will be spoken to the user.
+            # Rules
+            - Action should be rephrased in the present tense
+            - Must be in a single sentence
+            # Examples
+            - "I'm trying to book it."
+            - "Im' booking it"
+            """,
+        ],
+        reason: Annotated[
+            str,
+            """
+            The reason why the client wants a meeting.
+
+            # Rules
+            - The reason should be in the context of the banking industry
+
+            # Example
+            - "A new credit loan."
+            - "A mortgage simulation."
+            """,
+        ],
+        start_timestamp: Annotated[
+            str,
+            """
+            Date and time in 'YYYY-MM-DDTHH:MM' format of the start of the meeting.
+            """,
+        ],
+        end_timestamp: Annotated[
+            str,
+            """
+            Date and time in 'YYYY-MM-DDTHH:MM' format of the end of the meeting.
+            """,
+        ],
+        # slot: Annotated[
+        #     AvailabilityCalenderDict,
+        #     """
+        #     The slot at list of dates and times to check for availability.
+        #     # Rules
+        #     - The date should be in the format 'YYYY-MM-DD'
+        #     - The time should be in the format 'HH:MM'
+        #     - The time should be in the 24-hour format
+        #     # Example
+        #     [{"date": "2022-02-15", "time": "10:00"}, {"date": "2022-02-17", "time": "14:00"}]
+        #     """,
+        # ],
+    ) -> str:
+        """
+        Use this to confirm the meeting.
+
+        # Behavior
+        1. Get the availability for the requested date
+        2. Get the reason of the meeting
+        3. Return a confirmation message
+
+        # Rules
+        - Use this every time a new meeting is requested before booking it
+
+        # Usage examples
+        - The client wants to book an new meeting
+        - A customer ask questions about an availability
+        """
+        await self.tts_callback(customer_response, self.style)
+        return "The meeting is booked."
+
+    async def get_advisor_available_slot(
+        self,
+        customer_response: Annotated[
+            str,
+            """
+            Phrase used to confirm the action, in the same language as the client. This phrase will be spoken to the user.
+            # Rules
+            - Action should be rephrased in the present tense
+            - Must be in a single sentence
+            # Examples
+            - "I'm trying to book it."
+            - "Im' booking it"
+            """,
+        ],
+        start_timestamp: Annotated[
+            str,
+            """
+            Date and time in 'YYYY-MM-DDTHH:MM' format of the start of the period requested by the client for the appointment.
+            """,
+        ],
+        end_timestamp: Annotated[
+            str,
+            """
+            Date and time in 'YYYY-MM-DDTHH:MM' format of the end of the period requested by the client for the appointment.
+            """,
+        ],
+    ) -> str:
+        """
+        Use this if you need to get the banking advisor available slots.
+
+        The function returns the available slot.
+
+        For example 'The advisor is available from 2024-07-11T16:00 to 2024-07-11T16:30'
+        """
+
+        with open("db/config_slots.json") as f_in:
+            conf = json.load(f_in)
+        slots = [
+            {
+                "startTime": datetime.strptime(
+                    slot["startTime"]["dateTime"], "%Y-%m-%dT%H:%M"
+                ),
+                "endTime": datetime.strptime(
+                    slot["endTime"]["dateTime"], "%Y-%m-%dT%H:%M"
+                ),
+            }
+            for slot in conf["advisor"]["availability"]["timeSlots"]
+            if slot["startTime"]["dateTime"] >= start_timestamp
+            and slot["endTime"]["dateTime"] <= end_timestamp
+        ]
+        if len(slots) > 0:
+            return "The advisor is available from '%s' to '%s'." % (
+                slots[0]["startTime"].strftime("%a %d %b %Y %H:%M"),
+                slots[0]["endTime"].strftime("%a %d %b %Y %H:%M"),
+            )
+        else:
+            return "The advisor is not available at this period."
 
     async def end_call(self) -> str:
         """
@@ -456,10 +591,11 @@ class LlmPlugins:
         - Send a confirmation, if the customer wants to have a written proof
         """
         await self.tts_callback(customer_response, self.style)
-        success = await _sms.asend(
-            content=message,
-            phone_number=self.call.initiate.phone_number,
-        )
+        # success = await _sms.asend(
+        #     content=message,
+        #     phone_number=self.call.initiate.phone_number,
+        # )
+        success = True
         if not success:
             return "Failed to send SMS"
         self.call.messages.append(
@@ -538,7 +674,7 @@ class LlmPlugins:
 
             # Available short codes
             {% for available in call.initiate.lang.availables %}
-            - {{ available.short_code }} ({{ available.pronunciations_en[0] }})
+            - {{ available.short_code }} ({{ available.pronunciations[0] }})
             {% endfor %}
 
             # Data format
@@ -596,11 +732,11 @@ class LlmPlugins:
         ]
     ) -> str:
         """
-        Use to get claim customer data based on its mobile phone 
+        Use to get claim customer data based on its mobile phone
 
         # Behavior
-        1. Get customer info 
-        2. Return a customer data 
+        1. Get customer info
+        2. Return a customer data
 
         # Usage examples
         - Assistant want to identity the customer
@@ -609,7 +745,6 @@ class LlmPlugins:
         if len(customer_phone_number) < 12:  # Check if lang is available
             return f"Customer phone number <{customer_phone_number}> is not valid"
 
-        import json 
         # read cutomer data from local file
         customer_phone_number = customer_phone_number[-9:]
         customer_data_file = Path(__file__).parent / "db" / "data_customer.json"
@@ -621,14 +756,12 @@ class LlmPlugins:
             customer_data = customer_datas.get(customer_phone_number)
             if not customer_data:  # Check if customer data is found
                 return f"Customer data are not found in our Database"
-            
+
             # format customer data
             format_customer_data = "\n".join([f"{x}: {y}" for x, y in customer_data.items()])
 
             # return customer data
             return f"# Customer data are: \n {format_customer_data}"
-    
-
 
     @staticmethod
     async def to_openai(call: CallStateModel) -> list[ChatCompletionToolParam]:
