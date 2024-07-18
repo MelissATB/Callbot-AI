@@ -558,7 +558,7 @@ async def _handle_ivr_language(
         choices.append(
             RecognitionChoice(
                 label=lang.short_code,
-                phrases=lang.pronunciations_en,
+                phrases=lang.pronunciations,
                 tone=tones[i],
             )
         )
