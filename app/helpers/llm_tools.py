@@ -161,8 +161,8 @@ class LlmPlugins:
 
         For example 'The advisor is available from 2024-07-11T16:00 to 2024-07-11T16:30'
         """
-
-        with open("../helpers/db/config_slots.json") as f_in:
+        slots = Path(__file__).parent / "db" / "config_slots.json"
+        with slots.open(mode="r", encoding="utf-8") as f_in:
             conf = json.load(f_in)
         slots = [
             {
