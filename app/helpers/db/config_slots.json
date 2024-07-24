@@ -5,141 +5,6 @@
         "timeSlots": [
           {
             "startTime": {
-              "dateTime": "2024-07-15T09:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-15T10:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-15T10:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-15T11:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-15T14:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-15T15:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-16T09:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-16T10:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-16T10:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-16T11:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-16T14:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-16T15:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-17T09:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-17T10:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-17T10:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-17T11:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-17T14:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-17T15:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-18T09:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-18T10:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-18T10:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-18T11:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-18T14:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-18T15:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-19T09:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-19T10:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-19T10:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-19T11:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
-              "dateTime": "2024-07-19T14:00"
-            },
-            "endTime": {
-              "dateTime": "2024-07-19T15:00"
-            },
-            "availabilityViewInterval": 60
-          },
-          {
-            "startTime": {
               "dateTime": "2024-07-22T09:00"
             },
             "endTime": {
@@ -297,6 +162,141 @@
             },
             "endTime": {
               "dateTime": "2024-07-29T15:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-07-30T09:00"
+            },
+            "endTime": {
+              "dateTime": "2024-07-30T10:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-07-30T10:00"
+            },
+            "endTime": {
+              "dateTime": "2024-07-30T11:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-07-30T14:00"
+            },
+            "endTime": {
+              "dateTime": "2024-07-30T15:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-07-31T09:00"
+            },
+            "endTime": {
+              "dateTime": "2024-07-31T10:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-07-31T10:00"
+            },
+            "endTime": {
+              "dateTime": "2024-07-31T11:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-07-31T14:00"
+            },
+            "endTime": {
+              "dateTime": "2024-07-31T15:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-08-01T09:00"
+            },
+            "endTime": {
+              "dateTime": "2024-08-01T10:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-08-01T10:00"
+            },
+            "endTime": {
+              "dateTime": "2024-08-01T11:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-08-01T14:00"
+            },
+            "endTime": {
+              "dateTime": "2024-08-01T15:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-08-02T09:00"
+            },
+            "endTime": {
+              "dateTime": "2024-08-02T10:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-08-02T10:00"
+            },
+            "endTime": {
+              "dateTime": "2024-08-02T11:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-08-02T14:00"
+            },
+            "endTime": {
+              "dateTime": "2024-08-02T15:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-08-05T09:00"
+            },
+            "endTime": {
+              "dateTime": "2024-08-05T10:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-08-05T10:00"
+            },
+            "endTime": {
+              "dateTime": "2024-08-05T11:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-08-05T14:00"
+            },
+            "endTime": {
+              "dateTime": "2024-08-05T15:00"
             },
             "availabilityViewInterval": 60
           }
