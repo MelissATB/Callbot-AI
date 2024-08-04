@@ -738,8 +738,8 @@ class LlmPlugins:
         2. Return a customer data
 
         # Usage examples
-        - Assistant want to identity the customer
-        - Customer need to be identify by assistant
+        - Assistant wants to identity the customer
+        - Customer needs to be identified by assistant
         """
         if len(customer_phone_number) < 12:  # Check if lang is available
             return f"Customer phone number <{customer_phone_number}> is not valid"

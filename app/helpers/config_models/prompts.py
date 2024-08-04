@@ -497,11 +497,11 @@ class TtsModel(BaseModel):
         "I'm sorry, I have encountered an error. Could you repeat your request?"
     )
     goodbye_tpl: str = (
-        "Thank you for calling, I hope I've been able to help. You can call back, I've got it all memorized. {bot_company} wishes you a wonderful day!"
+        "Thank you for calling, I hope I've been able to help. {bot_company} wishes you a wonderful day!"
     )
-    hello_tpl: str = """
-        Hello, I'm {bot_name}, the virtual assistant {bot_company}! Feel free to speak to me in a natural way, I should be able to understand you without any issues
-"""
+    hello_tpl: str = (
+        "Hello, I'm {bot_name}, the virtual assistant {bot_company}! Feel free to speak to me in a natural way, I should be able to understand you without any issues"
+    )
     timeout_silence_tpl: str = (
         "I'm sorry, I didn't hear anything. If you need help, let me know how I can help you."
     )
