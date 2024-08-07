@@ -103,12 +103,12 @@ class AiSearchSearch(ISearch):
                     search_text=text,
                     semantic_configuration_name=self._config.semantic_configuration,
                     # Vector search
-                    vector_queries=[
-                        VectorizableTextQuery(
-                            fields="vectors",
-                            text=text,
-                        )
-                    ],
+                    # vector_queries=[
+                    #     VectorizableTextQuery(
+                    #         fields="vectors",
+                    #         text=text,
+                    #     )
+                    # ],
                     # Hybrid search (full text + vector search)
                     hybrid_search=HybridSearch(
                         count_and_facet_mode=HybridCountAndFacetMode.COUNT_RETRIEVABLE_RESULTS,

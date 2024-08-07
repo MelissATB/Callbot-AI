@@ -10,7 +10,7 @@
         "security_question_1": "Marque du premier véhicule",
         "security_answer_1": "Dacia",
         "security_question_2": "Premier artiste vu en concert",
-        "security_answer_2": "Téléphone",
+        "security_answer_2": "Reno",
         "bad_id": "12121212",
         "bad_secret_code": "111222"
     },
@@ -70,7 +70,7 @@
         "security_question_1": "Nom de l'école primaire",
         "security_answer_1": "Victor Hugo",
         "security_question_2": "Premier artiste vu en concert",
-        "security_answer_2": "Reno",
+        "security_answer_2": "Téléphone",
         "bad_id": "16161616",
         "bad_secret_code": "111666"
     },
