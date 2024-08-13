@@ -24,33 +24,20 @@ class ConfigBadFormat(Exception):
     pass
 
 
-def load_config() -> RootModel:
-    config: Optional[RootModel] = None
-    config_env = "CONFIG_JSON"
-    config_file = "../../configs/config.yaml"
+if _CONFIG_ENV in environ:
+    CONFIG = RootModel.model_validate_json(environ[_CONFIG_ENV])
+    print(f'Config from env "{_CONFIG_ENV}" loaded')
 
-    if config_env in environ:
-        config = RootModel.model_validate_json(environ[config_env])
-        print(f'Config loaded from env "{config_env}"')
-        return config
-
-    print(f'Cannot find env "{config_env}", trying to load from file')
-    path = find_dotenv(filename=config_file)
+else:
+    print(f'Config from env "{_CONFIG_ENV}" not found')
+    path = find_dotenv(filename=_CONFIG_FILE)
     if not path:
-        raise ConfigNotFound(f'Cannot find config file "{config_file}"')
+        raise ConfigNotFound(f'Cannot find config file "{_CONFIG_FILE}"')
     try:
-        with open(
-            encoding="utf-8",
-            file=path,
-            mode="r",
-        ) as f:
-            config = RootModel.model_validate(yaml.safe_load(f))
-            print(f'Config loaded from file "{path}"')
-            return config
+        with open(path, encoding="utf-8") as f:
+            CONFIG = RootModel.model_validate(yaml.safe_load(f))
     except ValidationError as e:
-        raise ConfigBadFormat("Config values are not valid") from e
+        raise ConfigBadFormat(f"Config values are not valid: {e.errors()}")
     except Exception as e:
-        raise ConfigBadFormat("Config YAML format is not valid") from e
-
-
-CONFIG = load_config()
+        raise ConfigBadFormat(f"Config YAML format is not valid") from e
+    print(f'Config "{path}" loaded')
