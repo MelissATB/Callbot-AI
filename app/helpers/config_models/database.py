@@ -1,5 +1,5 @@
 from enum import Enum
-from functools import cache
+from functools import lru_cache
 from persistence.istore import IStore
 from pydantic import field_validator, SecretStr, Field, BaseModel, ValidationInfo
 from typing import Optional
@@ -16,10 +16,15 @@ class CosmosDbModel(BaseModel, frozen=True):
     database: str
     endpoint: str
 
-    @cache
+    @lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
+
     def instance(self) -> IStore:
-        from helpers.config import CONFIG
-        from persistence.cosmos_db import CosmosDbStore
+
+        from helpers.config import CONFIG  # pylint: disable=import-outside-toplevel
+
+        from persistence.cosmos_db import (  # pylint: disable=import-outside-toplevel
+            CosmosDbStore,
+        )
 
         return CosmosDbStore(CONFIG.cache.instance(), self)
 
@@ -37,10 +42,14 @@ class SqliteModel(BaseModel, frozen=True):
         """
         return f"{self.path}-v{self.schema_version}.sqlite"
 
-    @cache
+    @lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
     def instance(self) -> IStore:
-        from helpers.config import CONFIG
-        from persistence.sqlite import SqliteStore
+
+        from helpers.config import CONFIG  # pylint: disable=import-outside-toplevel
+
+        from persistence.sqlite import (  # pylint: disable=import-outside-toplevel
+            SqliteStore,
+        )
 
         return SqliteStore(CONFIG.cache.instance(), self)
 
@@ -61,6 +70,7 @@ class DatabaseModel(BaseModel):
         return cosmos_db
 
     @field_validator("sqlite")
+    @classmethod
     def _validate_sqlite(
         cls,
         sqlite: Optional[SqliteModel],

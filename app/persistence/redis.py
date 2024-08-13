@@ -1,15 +1,17 @@
-from helpers.config_models.cache import RedisModel
-from helpers.logging import logger
-from models.readiness import ReadinessEnum
+import hashlib
+from typing import Optional, Union
+from uuid import uuid4
+
 from opentelemetry.instrumentation.redis import RedisInstrumentor
-from persistence.icache import ICache
 from redis.asyncio import Redis
 from redis.asyncio.retry import Retry
 from redis.backoff import ExponentialBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, RedisError
-from typing import Optional, Union
-from uuid import uuid4
-import hashlib
+
+from helpers.config_models.cache import RedisModel
+from helpers.logging import logger
+from models.readiness import ReadinessEnum
+from persistence.icache import ICache
 
 
 # Instrument redis
@@ -65,9 +67,9 @@ class RedisCache(ICache):
             return ReadinessEnum.OK
         except AssertionError:
             logger.error("Readiness test failed", exc_info=True)
-        except RedisError as e:
+        except RedisError:
             logger.error("Error requesting Redis", exc_info=True)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.error("Unknown error while checking Redis readiness", exc_info=True)
         return ReadinessEnum.FAIL
 
@@ -83,8 +85,8 @@ class RedisCache(ICache):
         res = None
         try:
             res = await self._client.get(sha_key)
-        except RedisError as e:
-            logger.error(f"Error getting value: {e}")
+        except RedisError:
+            logger.error("Error getting value", exc_info=True)
         return res
 
     async def aset(self, key: str, value: Union[str, bytes, None]) -> bool:
@@ -98,8 +100,8 @@ class RedisCache(ICache):
         sha_key = self._key_to_hash(key)
         try:
             await self._client.set(sha_key, value if value else "")
-        except RedisError as e:
-            logger.error(f"Error setting value: {e}")
+        except RedisError:
+            logger.error("Error setting value", exc_info=True)
             return False
         return True
 
@@ -112,8 +114,8 @@ class RedisCache(ICache):
         sha_key = self._key_to_hash(key)
         try:
             await self._client.delete(sha_key)
-        except RedisError as e:
-            logger.error(f"Error deleting value: {e}")
+        except RedisError:
+            logger.error("Error deleting value", exc_info=True)
             return False
         return True
 

@@ -1,7 +1,14 @@
-from azure.cosmos import ConsistencyLevel
-from azure.cosmos.aio import CosmosClient, ContainerProxy
-from azure.cosmos.exceptions import CosmosHttpResponseError
+import asyncio
+import logging
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator, Optional
+from uuid import UUID, uuid4
+
+from azure.cosmos import ConsistencyLevel
+from azure.cosmos.aio import ContainerProxy, CosmosClient
+from azure.cosmos.exceptions import CosmosHttpResponseError
+from pydantic import ValidationError
+
 from helpers.config import CONFIG
 from helpers.config_models.database import CosmosDbModel
 from helpers.http import azure_transport
@@ -10,10 +17,6 @@ from models.call import CallStateModel
 from models.readiness import ReadinessEnum
 from persistence.icache import ICache
 from persistence.istore import IStore
-from pydantic import ValidationError
-from typing import AsyncGenerator, Optional
-from uuid import UUID, uuid4
-import asyncio
 
 
 class CosmosDbStore(IStore):
@@ -64,7 +67,7 @@ class CosmosDbStore(IStore):
             logger.error("Readiness test failed", exc_info=True)
         except CosmosHttpResponseError:
             logger.error("Error requesting CosmosDB", exc_info=True)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Unknown error while checking Cosmos DB readiness", exc_info=True
             )
@@ -157,8 +160,8 @@ class CosmosDbStore(IStore):
         if cached:
             try:
                 return CallStateModel.model_validate_json(cached)
-            except ValidationError as e:
-                logger.debug(f"Parsing error: {e.errors()}")
+            except ValidationError:
+                logger.debug("Parsing error", exc_info=True)
 
         # Try live
         call = None
@@ -177,12 +180,12 @@ class CosmosDbStore(IStore):
                 raw = await anext(items)
                 try:
                     call = CallStateModel.model_validate(raw)
-                except ValidationError as e:
-                    logger.debug(f"Parsing error: {e.errors()}")
+                except ValidationError:
+                    logger.debug("Parsing error", exc_info=True)
         except StopAsyncIteration:
             pass
-        except CosmosHttpResponseError as e:
-            logger.error(f"Error accessing CosmosDB: {e}")
+        except CosmosHttpResponseError:
+            logger.error("Error accessing CosmosDB", exc_info=True)
 
         # Update cache
         if call:
@@ -234,16 +237,18 @@ class CosmosDbStore(IStore):
                         continue
                     try:
                         calls.append(CallStateModel.model_validate(raw))
-                    except ValidationError as e:
-                        logger.debug(f"Parsing error: {e.errors()}")
-        except CosmosHttpResponseError as e:
-            logger.error(f"Error accessing CosmosDB: {e}")
+                    except ValidationError:
+                        logger.debug("Parsing error", exc_info=True)
+
+        except CosmosHttpResponseError:
+            logger.error("Error accessing CosmosDB", exc_info=True)
         return calls
 
     async def _call_asearch_all_total_worker(
         self,
         phone_number: Optional[str] = None,
     ) -> int:
+        total = 0
         try:
             async with self._use_client() as db:
                 where_clause = (
@@ -260,10 +265,10 @@ class CosmosDbStore(IStore):
                         },
                     ],
                 )
-                total: int = await anext(items)  # type: ignore
-        except CosmosHttpResponseError as e:
-            logger.error(f"Error accessing CosmosDB: {e}")
-        return total if total else 0
+                total: int = await anext(items)  # pyright: ignore
+        except CosmosHttpResponseError:
+            logger.error("Error accessing CosmosDB", exc_info=True)
+        return total
 
     @asynccontextmanager
     async def _use_client(self) -> AsyncGenerator[ContainerProxy, None]:

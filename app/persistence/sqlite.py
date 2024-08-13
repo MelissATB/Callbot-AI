@@ -49,7 +49,7 @@ class SqliteStore(IStore):
             async with self._use_db() as db:
                 await db.execute("SELECT 1")
             return ReadinessEnum.OK
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.error("Unknown error while checking SQLite readiness", exc_info=True)
         return ReadinessEnum.FAIL
 
@@ -62,8 +62,8 @@ class SqliteStore(IStore):
         if call:
             try:
                 return CallStateModel.model_validate_json(call)
-            except ValidationError as e:
-                logger.debug(f"Parsing error: {e.errors()}")
+            except ValidationError:
+                logger.debug("Parsing error", exc_info=True)
 
         # Try live
         call = None
@@ -76,8 +76,8 @@ class SqliteStore(IStore):
             if row:
                 try:
                     call = CallStateModel.model_validate_json(row[0])
-                except ValidationError as e:
-                    logger.debug(f"Parsing error: {e.errors()}")
+                except ValidationError:
+                    logger.debug("Parsing error", exc_info=True)
 
         # Update cache
         if call:
@@ -122,8 +122,8 @@ class SqliteStore(IStore):
         if call:
             try:
                 return CallStateModel.model_validate_json(call)
-            except ValidationError as e:
-                logger.debug(f"Parsing error: {e.errors()}")
+            except ValidationError:
+                logger.debug("Parsing error", exc_info=True)
 
         # Try live
         call = None
@@ -139,8 +139,8 @@ class SqliteStore(IStore):
             if row:
                 try:
                     call = CallStateModel.model_validate_json(row[0])
-                except ValidationError as e:
-                    logger.debug(f"Parsing error: {e.errors()}")
+                except ValidationError:
+                    logger.debug("Parsing error", exc_info=True)
 
         # Update cache
         if call:
@@ -191,8 +191,8 @@ class SqliteStore(IStore):
                     continue
                 try:
                     calls.append(CallStateModel.model_validate_json(row[0]))
-                except ValidationError as e:
-                    logger.debug(f"Parsing error: {e.errors()}")
+                except ValidationError:
+                    logger.debug("Parsing error", exc_info=True)
         return calls
 
     async def _call_asearch_all_total_worker(

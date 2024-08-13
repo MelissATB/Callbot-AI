@@ -1,18 +1,21 @@
-from datetime import datetime, UTC
+import json
+import re
+from datetime import UTC, datetime
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator
+from inspect import getmembers, isfunction
 from typing import Any, Optional, Union
+
+from json_repair import repair_json
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionMessageToolCallParam,
     ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
 )
-from inspect import getmembers, isfunction
-from json_repair import repair_json
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
-import re
-import json
+from pydantic import BaseModel, Field, field_validator
+
+from helpers.monitoring import tracer
 
 
 _FUNC_NAME_SANITIZER_R = r"[^a-zA-Z0-9_-]"
@@ -80,7 +83,7 @@ class ToolModel(BaseModel):
         return self
 
     async def execute_function(self, plugins: object) -> None:
-        from helpers.logging import logger, tracer
+        from helpers.logging import logger  # pylint: disable=import-outside-toplevel
 
         json_str = self.function_arguments
         name = self.function_name
@@ -97,7 +100,7 @@ class ToolModel(BaseModel):
         args: dict[str, Any] = repair_json(
             json_str=json_str,
             return_objects=True,
-        )  # type: ignore
+        )  # pyright: ignore
 
         if not isinstance(args, dict):
             logger.warning(
@@ -107,7 +110,7 @@ class ToolModel(BaseModel):
             return
 
         with tracer.start_as_current_span(
-            name="execute_function",
+            name="message_execute_function",
             attributes={
                 "args": json.dumps(args),
                 "name": name,
@@ -123,7 +126,7 @@ class ToolModel(BaseModel):
                 )
                 res = f"Wrong arguments, please fix them and try again."
                 res_log = res
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.warning(
                     f"Error executing function {self.function_name} with args {args}: {e}"
                 )
@@ -134,9 +137,17 @@ class ToolModel(BaseModel):
 
     @staticmethod
     def _available_function_names() -> list[str]:
-        from helpers.llm_tools import LlmPlugins
+        from helpers.llm_tools import (  # pylint: disable=import-outside-toplevel
+            LlmPlugins,
+        )
 
-        return [name for name, _ in getmembers(LlmPlugins, isfunction)]
+        from helpers.config import CONFIG
+
+        return [
+            name
+            for name, _ in getmembers(LlmPlugins, isfunction)
+            if name not in CONFIG.llm.excluded_llm_tools  # pyright: ignore
+        ]
 
 
 class MessageModel(BaseModel):
@@ -150,6 +161,7 @@ class MessageModel(BaseModel):
     tool_calls: list[ToolModel] = []
 
     @field_validator("created_at")
+    @classmethod
     def _validate_created_at(cls, created_at: datetime) -> datetime:
         """
         Ensure the created_at field is timezone-aware.
@@ -180,7 +192,7 @@ class MessageModel(BaseModel):
                 )
             ]
 
-        elif self.persona == PersonaEnum.ASSISTANT:
+        if self.persona == PersonaEnum.ASSISTANT:
             if not self.tool_calls:
                 return [
                     ChatCompletionAssistantMessageParam(

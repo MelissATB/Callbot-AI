@@ -1,38 +1,41 @@
+import asyncio
+import time
 from typing import Awaitable, Callable
+
 from azure.communication.callautomation.aio import CallAutomationClient
-from helpers.config import CONFIG
-from helpers.logging import logger
-from models.call import CallStateModel
-from models.message import (
-    ActionEnum as MessageAction,
-    extract_message_style,
-    MessageModel,
-    PersonaEnum as MessagePersonaEnum,
-    remove_message_action,
-    StyleEnum as MessageStyleEnum,
-    ToolModel as MessageToolModel,
-)
+from openai import APIError
+
 from helpers.call_utils import (
     handle_clear_queue,
     handle_media,
     handle_recognize_text,
     tts_sentence_split,
 )
+from helpers.config import CONFIG
 from helpers.llm_tools import LlmPlugins
-import asyncio
 from helpers.llm_worker import (
-    completion_stream,
     MaximumTokensReachedError,
     SafetyCheckError,
+    completion_stream,
 )
-from openai import APIError
-import time
-
+from helpers.logging import logger
+from helpers.monitoring import tracer
+from models.call import CallStateModel
+from models.message import (
+    ActionEnum as MessageAction,
+    MessageModel,
+    PersonaEnum as MessagePersonaEnum,
+    StyleEnum as MessageStyleEnum,
+    ToolModel as MessageToolModel,
+    extract_message_style,
+    remove_message_action,
+)
 
 _cache = CONFIG.cache.instance()
 _db = CONFIG.database.instance()
 
 
+@tracer.start_as_current_span("call_load_llm_chat")
 async def load_llm_chat(
     call: CallStateModel,
     client: CallAutomationClient,
@@ -179,7 +182,7 @@ async def load_llm_chat(
             # Wait to not block the event loop for other requests
             await asyncio.sleep(1)
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.warning("Error loading intelligence", exc_info=True)
 
     if is_error:  # Error during chat
@@ -207,7 +210,7 @@ async def load_llm_chat(
             )
     else:
         if continue_chat and _iterations_remaining > 0:  # Contiue chat
-            logger.info(f"Continuing chat, {_iterations_remaining - 1} remaining")
+            logger.info("Continuing chat, %s remaining", _iterations_remaining - 1)
             return await load_llm_chat(
                 call=call,
                 client=client,
@@ -215,18 +218,20 @@ async def load_llm_chat(
                 trainings_callback=trainings_callback,
                 _iterations_remaining=_iterations_remaining - 1,
             )  # Recursive chat (like for for retry or tools)
-        else:  # End chat
-            await handle_recognize_text(
-                call=call,
-                client=client,
-                no_response_error=True,
-                style=MessageStyleEnum.NONE,
-                text=None,
-            )  # Trigger an empty text to recognize and generate timeout error if user does not speak
+
+        # End chat
+        await handle_recognize_text(
+            call=call,
+            client=client,
+            no_response_error=True,
+            style=MessageStyleEnum.NONE,
+            text=None,
+        )  # Trigger an empty text to recognize and generate timeout error if user does not speak
 
     return call
 
 
+@tracer.start_as_current_span("call_execute_llm_chat")
 async def _execute_llm_chat(
     call: CallStateModel,
     client: CallAutomationClient,
@@ -314,10 +319,10 @@ async def _execute_llm_chat(
             else:
                 # Store whole content
                 content_full += delta.content
-                for sentence in tts_sentence_split(
+                for sentence, length in tts_sentence_split(
                     content_full[content_buffer_pointer:], False
                 ):
-                    content_buffer_pointer += len(sentence)
+                    content_buffer_pointer += length
                     plugins.style = await _content_callback(sentence, plugins.style)
     except MaximumTokensReachedError:  # Retry on maximum tokens reached
         logger.warning("Maximum tokens reached for this completion, retry asked")

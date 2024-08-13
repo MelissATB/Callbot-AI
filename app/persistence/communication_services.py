@@ -48,10 +48,8 @@ class CommunicationServicesSms(ISms):
             logger.error(
                 "Authentication error for SMS, check the credentials", exc_info=True
             )
-        except HttpResponseError as e:
-            logger.error(f"Error sending SMS: {e}")
-        except Exception:
-            logger.warning(f"Failed SMS to {phone_number}", exc_info=True)
+        except HttpResponseError:
+            logger.error("Error sending SMS to %s", phone_number, exc_info=True)
         return success
 
     async def _use_client(self) -> SmsClient:

@@ -15,4 +15,4 @@ class ReadinessCheckModel(BaseModel):
 
 class ReadinessModel(BaseModel):
     checks: List[ReadinessCheckModel]
-    status: str
+    status: ReadinessEnum

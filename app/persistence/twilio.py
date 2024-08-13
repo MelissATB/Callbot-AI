@@ -32,7 +32,7 @@ class TwilioSms(ISms):
             return ReadinessEnum.OK
         except AssertionError:
             logger.error("Readiness test failed", exc_info=True)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.error("Unknown error while checking Twilio readiness", exc_info=True)
         return ReadinessEnum.FAIL
 
@@ -55,10 +55,8 @@ class TwilioSms(ISms):
             else:
                 logger.debug(f"SMS sent to {phone_number}")
                 success = True
-        except TwilioRestException as e:
-            logger.error(f"Error sending SMS: {e}")
-        except Exception:
-            logger.warning(f"Failed SMS to {phone_number}", exc_info=True)
+        except TwilioRestException:
+            logger.error("Error sending SMS to %s", phone_number, exc_info=True)
         return success
 
     async def _use_client(self) -> Client:

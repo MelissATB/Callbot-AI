@@ -1,5 +1,10 @@
-from helpers.config import CONFIG
-from helpers.logging import logger, tracer
+import json
+from functools import lru_cache
+from os import environ
+from typing import AsyncGenerator, Callable, Optional, TypeVar, Union
+
+import tiktoken
+from json_repair import repair_json
 from openai import (
     APIConnectionError,
     APIResponseValidationError,
@@ -24,24 +29,23 @@ from openai.types.chat.chat_completion_chunk import (
     ChoiceDeltaToolCall,
     ChoiceDeltaToolCallFunction,
 )
-from pydantic import BaseModel, ValidationError
+from opentelemetry.instrumentation.openai import OpenAIInstrumentor
+from pydantic import ValidationError
 from tenacity import (
     AsyncRetrying,
+    retry,
     retry_any,
     retry_if_exception_type,
-    retry,
     stop_after_attempt,
     wait_random_exponential,
 )
-from functools import lru_cache
+
+from helpers.config import CONFIG
 from helpers.config_models.llm import AbstractPlatformModel as LlmAbstractPlatformModel
+from helpers.logging import logger
+from helpers.monitoring import tracer
 from helpers.resources import resources_dir
 from models.message import MessageModel
-from opentelemetry.instrumentation.openai import OpenAIInstrumentor
-from os import environ
-from typing import AsyncGenerator, Callable, Optional, TypeVar, Union
-import json
-import tiktoken
 
 
 environ["TRACELOOP_TRACE_CONTENT"] = str(
@@ -56,7 +60,6 @@ logger.info(
     f"Using LLM models {CONFIG.llm.selected(False).model} (slow) and {CONFIG.llm.selected(True).model} (fast)"
 )
 
-ModelType = TypeVar("ModelType", bound=BaseModel)
 T = TypeVar("T")
 
 
@@ -76,7 +79,7 @@ _retried_exceptions = [
 ]
 
 
-@tracer.start_as_current_span("completion_stream")
+@tracer.start_as_current_span("llm_completion_stream")
 async def completion_stream(
     max_tokens: int,
     messages: list[MessageModel],
@@ -110,7 +113,7 @@ async def completion_stream(
                 ):
                     yield chunck
                 return
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         if not any(isinstance(e, exception) for exception in _retried_exceptions):
             raise e
         logger.warning(
@@ -224,7 +227,7 @@ async def _completion_stream_worker(
             yield delta
     except BadRequestError as e:
         if e.code == "content_filter":
-            raise SafetyCheckError("Issue detected in prompt")
+            raise SafetyCheckError("Issue detected in prompt") from e
         raise e
 
     if maximum_tokens_reached:
@@ -237,7 +240,7 @@ async def _completion_stream_worker(
     stop=stop_after_attempt(3),
     wait=wait_random_exponential(multiplier=0.8, max=8),
 )
-@tracer.start_as_current_span("completion_sync")
+@tracer.start_as_current_span("llm_completion_sync")
 async def completion_sync(
     res_type: type[T],
     system: list[ChatCompletionSystemMessageParam],
@@ -252,27 +255,27 @@ async def completion_sync(
     # Initialize prompts
     messages = system
     if _validation_error:
-        messages.append(
-            ChatCompletionSystemMessageParam(
-                role="system",
-                content=f"""
-                    A validation error occurred during the previous attempt.
-
-                    # Previous result
-                    {_previous_result or "N/A"}
-
-                    # Error details
-                    {_validation_error}
-                    """,
-            )
-        )
+        messages += [
+            ChatCompletionAssistantMessageParam(
+                content=_previous_result or "",
+                role="assistant",
+            ),
+            ChatCompletionUserMessageParam(
+                content=f"A validation error occurred, please retry: {_validation_error}",
+                role="user",
+            ),
+        ]
 
     # Generate
-    res_content = await _completion_sync_worker(
+    res_content: Optional[str] = await _completion_sync_worker(
         is_fast=False,
         json_output=validate_json,
         system=messages,
     )
+    if validate_json and res_content:
+        # Try to fix JSON args to catch LLM hallucinations
+        # See: https://community.openai.com/t/gpt-4-1106-preview-messes-up-function-call-parameters-encoding/478500
+        res_content = repair_json(json_str=res_content)  # pyright: ignore
 
     # Validate
     is_valid, validation_error, res_object = validation_callback(res_content)
@@ -306,7 +309,6 @@ async def _completion_sync_worker(
     """
     Returns a completion.
     """
-    content = None
     client, platform = _use_llm(is_fast)
     extra = {}
     if json_output:
@@ -331,6 +333,7 @@ async def _completion_sync_worker(
         ),  # Usage is async and long-lived, so stop after 10 attempts
         wait=wait_random_exponential(multiplier=0.8, max=8),
     )
+    choice = None
     async for attempt in retryed:
         with attempt:
             try:
@@ -344,7 +347,7 @@ async def _completion_sync_worker(
                 )
             except BadRequestError as e:
                 if e.code == "content_filter":
-                    raise SafetyCheckError("Issue detected in prompt")
+                    raise SafetyCheckError("Issue detected in prompt") from e
                 raise e
             choice = res.choices[0]
             if choice.finish_reason == "content_filter":  # Azure OpenAI content filter
@@ -354,8 +357,7 @@ async def _completion_sync_worker(
             if choice.finish_reason == "length":
                 raise MaximumTokensReachedError(f"Maximum tokens reached {max_tokens}")
 
-    content = choice.message.content
-    return content or None
+    return choice.message.content if choice else None
 
 
 def _limit_messages(

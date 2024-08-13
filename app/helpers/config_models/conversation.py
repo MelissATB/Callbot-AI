@@ -125,6 +125,7 @@ class WorkflowInitiateModel(BaseModel):
         ge=0.75,
         le=1.25,
     )
+    enable_language_choice: bool = True  # add language choice option
     task: str = (
         "Helping the customer to file an insurance claim. The customer is probably calling because they have a problem with something covered by their policy, but it's not certain. The assistant needs information from the customer to complete the claim. The conversation is over when all the data relevant to the case has been collected. Filling in as much information as possible is important for further processing."
     )
@@ -185,7 +186,7 @@ def _fields_to_pydantic(name: str, fields: list[ClaimFieldModel]) -> type[BaseMo
     field_definitions = {field.name: _field_to_pydantic(field) for field in fields}
     return create_model(
         name,
-        **field_definitions,  # type: ignore
+        **field_definitions,  # pyright: ignore
         __config__=ConfigDict(
             extra="ignore",  # Avoid validation errors, just ignore data
         ),
@@ -195,9 +196,10 @@ def _fields_to_pydantic(name: str, fields: list[ClaimFieldModel]) -> type[BaseMo
 def _field_to_pydantic(
     field: ClaimFieldModel,
 ) -> Union[Annotated[Any, ...], tuple[type, FieldInfo]]:
-    type = _type_to_pydantic(field.type)
+    field_type = _type_to_pydantic(field.type)
+
     return (
-        Optional[type],
+        Optional[field_type],
         Field(
             default=None,
             description=field.description,
@@ -209,12 +211,19 @@ def _type_to_pydantic(
     data: ClaimTypeEnum,
 ) -> Union[type, Annotated[Any, ...]]:
     if data == ClaimTypeEnum.DATETIME:
+
         return datetime
-    elif data == ClaimTypeEnum.EMAIL:
+
+    if data == ClaimTypeEnum.EMAIL:
+
         return EmailStr
-    elif data == ClaimTypeEnum.PHONE_NUMBER:
+
+    if data == ClaimTypeEnum.PHONE_NUMBER:
+
         return PhoneNumber
-    elif data == ClaimTypeEnum.TEXT:
+
+    if data == ClaimTypeEnum.TEXT:
+
         return str
-    else:
-        raise ValueError(f"Unsupported data: {data}")
+
+    raise ValueError(f"Unsupported data: {data}")

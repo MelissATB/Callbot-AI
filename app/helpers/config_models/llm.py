@@ -74,6 +74,7 @@ class SelectedPlatformModel(BaseModel):
     openai: Optional[OpenaiPlatformModel] = None
 
     @field_validator("azure_openai")
+    @classmethod
     def _validate_azure_openai(
         cls,
         azure_openai: Optional[AzureOpenaiPlatformModel],
@@ -84,6 +85,7 @@ class SelectedPlatformModel(BaseModel):
         return azure_openai
 
     @field_validator("openai")
+    @classmethod
     def _validate_openai(
         cls,
         openai: Optional[OpenaiPlatformModel],
@@ -102,6 +104,7 @@ class SelectedPlatformModel(BaseModel):
 
 
 class LlmModel(BaseModel):
+    excluded_llm_tools: Optional[list] = []
     fast: SelectedPlatformModel = Field(
         serialization_alias="backup",  # Backwards compatibility with v6
     )

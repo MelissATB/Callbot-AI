@@ -11,7 +11,11 @@ from helpers.config_models.resources import ResourcesModel
 from helpers.config_models.sms import SmsModel
 from helpers.config_models.conversation import ConversationModel
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 
 class RootModel(BaseSettings):
@@ -44,3 +48,36 @@ class RootModel(BaseSettings):
     conversation: ConversationModel = Field(
         serialization_alias="workflow"
     )  # Compatibility with v7
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """
+
+        Customise the order of the settings sources.
+
+
+
+        Order is now:
+
+        1. Environment variables
+
+        2. .env file
+
+        3. Docker secrets
+
+        4. Initial settings
+
+
+
+        See: https://docs.pydantic.dev/latest/concepts/pydantic_settings/#changing-priority
+
+        """
+
+        return env_settings, dotenv_settings, file_secret_settings, init_settings

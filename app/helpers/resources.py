@@ -1,5 +1,4 @@
 from functools import lru_cache
-from os import path
 from pathlib import Path
 
 
@@ -8,4 +7,6 @@ def resources_dir(folder: str) -> str:
     """
     Get the absolute path to the resources folder.
     """
-    return str(Path(path.join("..", "resources", folder)).resolve().absolute())
+    app_path = Path(__file__).parent.parent
+    resources_dir_path = app_path / "resources" / folder
+    return str(resources_dir_path.absolute())

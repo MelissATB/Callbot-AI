@@ -21,14 +21,14 @@ class SoundModel(BaseModel):
     ready_tpl: str = "{public_url}/ready.wav"
 
     def loading(self) -> str:
-        from helpers.config import CONFIG
+        from helpers.config import CONFIG  # pylint: disable=import-outside-toplevel
 
         return self.loading_tpl.format(
             public_url=CONFIG.resources.public_url,
         )
 
     def ready(self) -> str:
-        from helpers.config import CONFIG
+        from helpers.config import CONFIG  # pylint: disable=import-outside-toplevel
 
         return self.ready_tpl.format(
             public_url=CONFIG.resources.public_url,
@@ -60,8 +60,9 @@ class LlmModel(BaseModel):
         - After an action, explain clearly the next step
         - Always continue the conversation to solve the conversation objective
         - Answers in {default_lang}, but can be updated with the help of a tool
-        - Ask questions a maximum of 2 times in a row
+        - Ask 2 questions maximum at a time
         - Be concise
+        - Enumerations are allowed to be used for 3 items maximum (e.g., "First, I will ask you for your name. Second, I will ask you for your email address.")
         - If you don't know how to respond or if you don't understand something, say "I don't know" or ask the customer to rephrase it
         - Is allowed to make assumptions, as the customer will correct them if they are wrong
         - Provide a clear and concise summary of the conversation at the beginning of each call
@@ -71,11 +72,12 @@ class LlmModel(BaseModel):
         - Use tools as often as possible and describe the actions you take
         - When the customer says a word and then spells out letters, this means that the word is written in the way the customer spelled it (e.g., "I live in Paris PARIS" -> "Paris", "My name is John JOHN" -> "John", "My email is Clemence CLEMENCE at gmail dot com" -> "clemence@gmail.com")
         - Work for {bot_company}, not someone else
+        - Write acronyms and initials in full letters (e.g., "The appointment is scheduled for eleven o'clock in the morning", "We are available 24 hours a day, 7 days a week")
 
         # Definitions
 
         ## Means of contact
-        - By SMS, after the call
+        - By SMS, during or after the call
         - By voice, now with the customer (voice recognition may contain errors)
 
         ## Actions
@@ -170,6 +172,11 @@ class LlmModel(BaseModel):
         Conversation objective: Support the customer with its domages after a storm.
         Assistant: Hello, I'm Marie, the virtual assistant. I'm here to help you. Don't hesitate to ask me anything.
         Assistant: style=none How can I help you today?
+
+        ## Example 10
+        Conversation objective: Help the customer with their credit card.
+        User: action=talk Is my card covered for theft?
+        Assistant: style=none I understand, it should be stressful. You can follow his procedure: First, open your mobile app and go to the card section. Second, click on the card you want to block. Third, click on the "Block card" button. Fourth, confirm the blocking. Fifth, call the customer service to report the theft. style=cheerful It'll take you less than 5 minutes. style=none Do you need help with something else?
     """
     sms_summary_system_tpl: str = """
         # Objective
@@ -311,7 +318,7 @@ class LlmModel(BaseModel):
     """
 
     def default_system(self, call: CallStateModel) -> str:
-        from helpers.config import CONFIG
+        from helpers.config import CONFIG  # pylint: disable=import-outside-toplevel
 
         return self._format(
             self.default_system_tpl.format(
@@ -320,7 +327,7 @@ class LlmModel(BaseModel):
                 bot_phone_number=CONFIG.communication_services.phone_number,
                 date=datetime.now(call.tz()).strftime(
                     "%a %d %b %Y %H:%M (%Z)"
-                ),  # Don't include secs to enhance cache during unit tests. Example: "2024-02-01 18:58".
+                ),  # Don't include secs to enhance cache during unit tests. Example: "Mon 15 Jul 2024, 12:43 (CEST)"
                 phone_number=call.initiate.phone_number,
             )
         )
@@ -328,7 +335,7 @@ class LlmModel(BaseModel):
     def chat_system(
         self, call: CallStateModel, trainings: list[TrainingModel]
     ) -> list[ChatCompletionSystemMessageParam]:
-        from models.message import (
+        from models.message import (  # pylint: disable=import-outside-toplevel
             ActionEnum as MessageActionEnum,
             StyleEnum as MessageStyleEnum,
         )
@@ -477,7 +484,7 @@ class LlmModel(BaseModel):
 
     @cached_property
     def logger(self) -> Logger:
-        from helpers.logging import logger
+        from helpers.logging import logger  # pylint: disable=import-outside-toplevel
 
         return logger
 
@@ -491,17 +498,22 @@ class TtsModel(BaseModel):
         "I'm sorry, I wasn't able to respond your request. Please allow me to transfer you to an agent who can assist you further. Please stay on the line and I will get back to you shortly."
     )
     end_call_to_connect_agent_tpl: str = (
-        "Stay on the line. I will transfer you to an agent."
+        "Of course, stay on the line. I will transfer you to an agent."
     )
+
     error_tpl: str = (
         "I'm sorry, I have encountered an error. Could you repeat your request?"
     )
+
     goodbye_tpl: str = (
-        "Thank you for calling, I hope I've been able to help. {bot_company} wishes you a wonderful day!"
+        "Thank you for calling, I hope I've been able to help. You can call back, I've got it all memorized. {bot_company} wishes you a wonderful day!"
     )
-    hello_tpl: str = (
-        "Hello, I'm {bot_name}, the virtual assistant {bot_company}! Feel free to speak to me in a natural way, I should be able to understand you without any issues"
-    )
+
+    hello_tpl: str = """
+
+        Hello, I'm {bot_name}, the virtual assistant {bot_company}! Here's how I work: while I'm processing your information, wou will hear a music. Feel free to speak to me in a natural way - I'm designed to understand your requests. During the conversation, you can also send me text messages.
+
+"""
     timeout_silence_tpl: str = (
         "I'm sorry, I didn't hear anything. If you need help, let me know how I can help you."
     )
@@ -542,7 +554,7 @@ class TtsModel(BaseModel):
         return await self._translate(self.timeout_silence_tpl, call)
 
     async def welcome_back(self, call: CallStateModel) -> str:
-        from helpers.config import CONFIG
+        from helpers.config import CONFIG  # pylint: disable=import-outside-toplevel
 
         return await self._translate(
             self.welcome_back_tpl,
@@ -580,7 +592,9 @@ class TtsModel(BaseModel):
 
         If the translation fails, the initial prompt is returned.
         """
-        from helpers.translation import translate_text
+        from helpers.translation import (  # pylint: disable=import-outside-toplevel
+            translate_text,
+        )
 
         initial = self._return(prompt_tpl, **kwargs)
         translation = None
@@ -595,7 +609,7 @@ class TtsModel(BaseModel):
 
     @cached_property
     def logger(self) -> Logger:
-        from helpers.logging import logger
+        from helpers.logging import logger  # pylint: disable=import-outside-toplevel
 
         return logger
 

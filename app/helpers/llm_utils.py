@@ -161,10 +161,9 @@ async def _parameter_json_schema(
             retval = value.__metadata__[0]
             if isinstance(retval, str):
                 return retval
-            else:
-                raise ValueError(
-                    f"Invalid description {retval} for parameter {name}, should be a string."
-                )
+            raise ValueError(
+                f"Invalid description {retval} for parameter {name}, should be a string."
+            )
         else:
             return name
 

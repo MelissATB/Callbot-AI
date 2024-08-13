@@ -1,23 +1,12 @@
+import asyncio
+from typing import Awaitable, Callable, Optional
+
 from azure.communication.callautomation import DtmfTone, RecognitionChoice
 from azure.communication.callautomation.aio import CallAutomationClient
+from azure.core.exceptions import ClientAuthenticationError, HttpResponseError
 from pydantic import ValidationError
-from helpers.config import CONFIG
-from helpers.logging import logger, tracer
-from typing import Awaitable, Callable, Optional
-from azure.core.exceptions import (
-    ClientAuthenticationError,
-    HttpResponseError,
-)
-from models.synthesis import SynthesisModel
-from models.call import CallStateModel
-from models.message import (
-    ActionEnum as MessageActionEnum,
-    extract_message_style,
-    MessageModel,
-    PersonaEnum as MessagePersonaEnum,
-    remove_message_action,
-    StyleEnum as MessageStyleEnum,
-)
+
+from helpers.call_llm import load_llm_chat
 from helpers.call_utils import (
     ContextEnum as CallContextEnum,
     handle_clear_queue,
@@ -27,11 +16,21 @@ from helpers.call_utils import (
     handle_recognize_text,
     handle_transfer,
 )
-from helpers.call_llm import load_llm_chat
+from helpers.config import CONFIG
 from helpers.llm_worker import completion_sync
+from helpers.logging import logger
+from helpers.monitoring import CallAttributes, span_attribute, tracer
+from models.call import CallStateModel
+from models.message import (
+    ActionEnum as MessageActionEnum,
+    MessageModel,
+    PersonaEnum as MessagePersonaEnum,
+    StyleEnum as MessageStyleEnum,
+    extract_message_style,
+    remove_message_action,
+)
 from models.next import NextModel
-import asyncio
-
+from models.synthesis import SynthesisModel
 
 _sms = CONFIG.sms.instance()
 _db = CONFIG.database.instance()
@@ -78,6 +77,8 @@ async def on_new_call(
 async def on_call_connected(
     call: CallStateModel,
     client: CallAutomationClient,
+    post_callback: Callable[[CallStateModel], Awaitable[None]],
+    trainings_callback: Callable[[CallStateModel], Awaitable[None]],
 ) -> None:
     logger.info("Call connected, asking for language")
     call.recognition_retry = 0  # Reset recognition retry counter
@@ -88,14 +89,55 @@ async def on_call_connected(
             persona=MessagePersonaEnum.HUMAN,
         )
     )
-    await asyncio.gather(
-        _handle_ivr_language(
-            call=call, client=client
-        ),  # First, every time a call is answered, confirm the language
-        _db.call_aset(
-            call
-        ),  # save in DB allowing SMS answers to be more "in-sync", should be quick enough to be in sync with the next message
-    )
+    if CONFIG.conversation.initiate.enable_language_choice:
+
+        await asyncio.gather(
+            _handle_ivr_language(
+                call=call, client=client
+            ),  # First, every time a call is answered, confirm the language
+            _db.call_aset(
+                call
+            ),  # save in DB allowing SMS answers to be more "in-sync", should be quick enough to be in sync with the next message
+        )
+
+    else:
+
+        persist_coro = _db.call_aset(call)
+
+        if len(call.messages) <= 1:  # First call, or only the call action
+
+            await asyncio.gather(
+                handle_recognize_text(
+                    call=call,
+                    client=client,
+                    text=await CONFIG.prompts.tts.hello(call),
+                ),  # First, greet the user
+                persist_coro,  # Second, persist language change for next messages, should be quick enough to be in sync with the next message
+                load_llm_chat(
+                    call=call,
+                    client=client,
+                    post_callback=post_callback,
+                    trainings_callback=trainings_callback,
+                ),  # Third, the LLM should be loaded to continue the conversation
+            )  # All in parallel to lower the response latency
+
+        else:  # Returning call
+
+            await asyncio.gather(
+                handle_recognize_text(
+                    call=call,
+                    client=client,
+                    style=MessageStyleEnum.CHEERFUL,
+                    text=await CONFIG.prompts.tts.welcome_back(call),
+                ),  # First, welcome back the user
+                persist_coro,  # Second, persist language change for next messages, should be quick enough to be in sync with the next message
+                load_llm_chat(
+                    call=call,
+                    client=client,
+                    post_callback=post_callback,
+                    trainings_callback=trainings_callback,
+                ),  # Third, the LLM should be loaded to continue the conversation
+            )
 
 
 @tracer.start_as_current_span("on_call_disconnected")
@@ -121,6 +163,8 @@ async def on_speech_recognized(
     trainings_callback: Callable[[CallStateModel], Awaitable[None]],
 ) -> None:
     logger.info(f"Voice recognition: {text}")
+    span_attribute(CallAttributes.CALL_CHANNEL, "voice")
+    span_attribute(CallAttributes.CALL_MESSAGE, text)
     call.messages.append(
         MessageModel(
             content=text,
@@ -154,6 +198,7 @@ async def on_recognize_timeout_error(
     if (
         contexts and CallContextEnum.IVR_LANG_SELECT in contexts
     ):  # Retry IVR recognition
+        span_attribute(CallAttributes.CALL_CHANNEL, "ivr")
         if call.recognition_retry < CONFIG.conversation.voice_recognition_retry_max:
             call.recognition_retry += 1
             logger.info(
@@ -211,6 +256,7 @@ async def on_recognize_unknown_error(
     client: CallAutomationClient,
     error_code: int,
 ) -> None:
+    span_attribute(CallAttributes.CALL_CHANNEL, "voice")
     if error_code == 8511:  # Failure while trying to play the prompt
         logger.warning("Failed to play prompt")
     else:
@@ -234,6 +280,7 @@ async def on_play_completed(
     post_callback: Callable[[CallStateModel], Awaitable[None]],
 ) -> None:
     logger.debug("Play completed")
+    span_attribute(CallAttributes.CALL_CHANNEL, "voice")
 
     if not contexts:
         return
@@ -261,6 +308,7 @@ async def on_play_completed(
 @tracer.start_as_current_span("on_play_error")
 async def on_play_error(error_code: int) -> None:
     logger.debug("Play failed")
+    span_attribute(CallAttributes.CALL_CHANNEL, "voice")
     # See: https://github.com/MicrosoftDocs/azure-docs/blob/main/articles/communication-services/how-tos/call-automation/play-action.md
     if error_code == 8535:  # Action failed, file format
         logger.warning("Error during media play, file format is invalid")
@@ -284,6 +332,9 @@ async def on_ivr_recognized(
     post_callback: Callable[[CallStateModel], Awaitable[None]],
     trainings_callback: Callable[[CallStateModel], Awaitable[None]],
 ) -> None:
+    logger.info("IVR recognized: %s", label)
+    span_attribute(CallAttributes.CALL_CHANNEL, "ivr")
+    span_attribute(CallAttributes.CALL_MESSAGE, label)
     call.recognition_retry = 0  # Reset recognition retry counter
     try:
         lang = next(
@@ -363,6 +414,8 @@ async def on_sms_received(
     trainings_callback: Callable[[CallStateModel], Awaitable[None]],
 ) -> bool:
     logger.info(f"SMS received from {call.initiate.phone_number}: {message}")
+    span_attribute(CallAttributes.CALL_CHANNEL, "sms")
+    span_attribute(CallAttributes.CALL_MESSAGE, message)
     call.messages.append(
         MessageModel(
             action=MessageActionEnum.SMS,
@@ -417,11 +470,15 @@ async def on_end_call(
         )
         return
 
-    await asyncio.gather(
-        _intelligence_next(call),
-        _intelligence_sms(call),
-        _intelligence_synthesis(call),
-    )
+    actions = [_intelligence_next(call)]
+
+    if "send_sms" not in CONFIG.llm.excluded_llm_tools:  # pyright: ignore
+
+        actions.append(_intelligence_sms(call))
+
+    actions.append(_intelligence_synthesis(call))
+
+    await asyncio.gather(*actions)
 
 
 async def _intelligence_sms(call: CallStateModel) -> None:
@@ -490,19 +547,19 @@ async def _intelligence_synthesis(call: CallStateModel) -> None:
         except ValidationError as e:
             return False, str(e), None
 
-    synthesis = await completion_sync(
+    model = await completion_sync(
         res_type=SynthesisModel,
         system=CONFIG.prompts.llm.synthesis_system(call),
         validate_json=True,
         validation_callback=_validate,
     )
 
-    if not synthesis:
+    if not model:
         logger.warning("Error generating synthesis")
         return
 
-    logger.info(f"Synthesis: {synthesis}")
-    call.synthesis = synthesis
+    logger.info(f"Synthesis: {model}")
+    call.synthesis = model
     await _db.call_aset(call)
 
 
@@ -522,19 +579,19 @@ async def _intelligence_next(call: CallStateModel) -> None:
         except ValidationError as e:
             return False, str(e), None
 
-    next = await completion_sync(
+    model = await completion_sync(
         res_type=NextModel,
         system=CONFIG.prompts.llm.next_system(call),
         validate_json=True,
         validation_callback=_validate,
     )
 
-    if not next:
+    if not model:
         logger.warning("Error generating next action")
         return
 
-    logger.info(f"Next action: {next}")
-    call.next = next
+    logger.info(f"Next action: {model}")
+    call.next = model
     await _db.call_aset(call)
 
 

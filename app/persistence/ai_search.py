@@ -1,3 +1,5 @@
+from typing import Optional
+
 from azure.core.credentials import AzureKeyCredential
 from azure.core.exceptions import (
     HttpResponseError,
@@ -15,23 +17,21 @@ from azure.search.documents.models import (
     SearchMode,
     VectorizableTextQuery,
 )
-from helpers.http import azure_transport
+from pydantic import TypeAdapter, ValidationError
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
+
 from helpers.config_models.ai_search import AiSearchModel
+from helpers.http import azure_transport
 from helpers.logging import logger
 from models.readiness import ReadinessEnum
 from models.training import TrainingModel
 from persistence.icache import ICache
 from persistence.isearch import ISearch
-from pydantic import TypeAdapter
-from pydantic import ValidationError
-from typing import Optional
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_random_exponential,
-    retry_if_exception_type,
-)
-
 
 class AiSearchSearch(ISearch):
     _client: Optional[SearchClient] = None
@@ -57,7 +57,7 @@ class AiSearchSearch(ISearch):
             logger.error("Error requesting AI Search", exc_info=True)
         except ServiceRequestError:
             logger.error("Error connecting to AI Search", exc_info=True)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Unknown error while checking AI Search readiness", exc_info=True
             )
