@@ -419,42 +419,6 @@ class LlmPlugins:
             self.call.claim[field] = old_value
             return f'Failed to edit field "{field}": {e.json()}'
 
-    async def get_customer_credit_card(self) -> str:
-        """
-        Use this function only if you need information about customer credit card (Visa or Mastercard).
-
-        # Behavior
-        1. Return the information about the credit card type and offering
-
-        # Rules
-        - Use only when you require credit card information to answer customer question
-        - Never use this action directly after a recall or if not necessary
-
-        # Usage examples
-        - Customer wants to know if their credit card insurance cover him in some specific situation
-        - Customer wants to know what is their credit card type and offering
-        """
-
-        txt_plafond = "Voici un Json concernant les plafonds et la carte banquaire de l'utilisateur"
-        txt_solde = "Voici un Json concernant le solde banquaire de l'utilisateur"
-
-        user_id = 1
-        url_solde = f"https://api-func-g3.azurewebsites.net/api/api_solde?code=pbq9Ri2pNlfyRwk70gKsAWJf1soEVJqG675z-69aq6F9AzFu_RF5AQ%3D%3D&user_id={user_id}"
-        url_plafond = f"https://api-func-g3.azurewebsites.net/api/api_plafond?code=yxBhLawagQbuYybaGLG1yvRBvJFGn65I0Xlm9uZfMELkAzFu1Yi6Zw%3D%3D&user_id={user_id}"
-
-        with urllib.request.urlopen(url_plafond) as url:
-            txt_plafond += json.dumps(json.load(url))
-
-        with urllib.request.urlopen(url_solde) as url:
-            txt_solde += json.dumps(json.load(url))
-
-        txt_return = f"{txt_plafond} {txt_solde}"
-        logger.error(txt_solde)
-        logger.error(txt_plafond)
-        logger.error(txt_return)
-
-        return f"{txt_plafond} {txt_solde}"
-
     async def talk_to_human(self) -> str:
         """
         Use this if the customer wants to talk to a human and Assistant is unable to help.
