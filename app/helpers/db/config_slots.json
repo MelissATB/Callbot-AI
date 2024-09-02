@@ -275,28 +275,37 @@
           },
           {
             "startTime": {
-              "dateTime": "2024-08-02T09:00"
+              "dateTime": "2024-08-30T17:00"
             },
             "endTime": {
-              "dateTime": "2024-08-02T10:00"
+              "dateTime": "2024-08-30T18:00"
             },
             "availabilityViewInterval": 60
           },
           {
             "startTime": {
-              "dateTime": "2024-08-02T10:00"
+              "dateTime": "2024-09-02T09:00"
             },
             "endTime": {
-              "dateTime": "2024-08-02T11:00"
+              "dateTime": "2024-09-02T10:00"
             },
             "availabilityViewInterval": 60
           },
           {
             "startTime": {
-              "dateTime": "2024-08-02T14:00"
+              "dateTime": "2024-09-02T10:00"
             },
             "endTime": {
-              "dateTime": "2024-08-02T15:00"
+              "dateTime": "2024-09-02T11:00"
+            },
+            "availabilityViewInterval": 60
+          },
+          {
+            "startTime": {
+              "dateTime": "2024-09-02T14:00"
+            },
+            "endTime": {
+              "dateTime": "2024-09-02T15:00"
             },
             "availabilityViewInterval": 60
           }
